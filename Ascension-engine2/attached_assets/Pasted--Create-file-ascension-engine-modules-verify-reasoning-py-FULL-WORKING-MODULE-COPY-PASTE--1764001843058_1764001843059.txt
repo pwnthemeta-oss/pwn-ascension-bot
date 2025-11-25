@@ -1,0 +1,157 @@
+📁 Create file:
+ascension-engine/modules/verify_reasoning.py
+
+📄 FULL WORKING MODULE — COPY + PASTE
+"""
+modules/verify_reasoning.py
+HUMAN REASONING VERIFICATION
+A simple logic question to confirm the user is human.
+"""
+
+import random
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from database import load_db, save_db, get_user
+
+
+# List of reasoning questions
+QUESTIONS = [
+    {
+        "question": "❓ Which animal can fly?",
+        "options": ["🦁", "🐶", "🦅"],
+        "correct": "🦅"
+    },
+    {
+        "question": "❓ Which object gives light?",
+        "options": ["🪑", "💡", "📦"],
+        "correct": "💡"
+    },
+    {
+        "question": "❓ Which one is used for writing?",
+        "options": ["✏️", "🍎", "🧱"],
+        "correct": "✏️"
+    },
+    {
+        "question": "❓ Which one is a fruit?",
+        "options": ["🍎", "🧲", "🪨"],
+        "correct": "🍎"
+    },
+    {
+        "question": "❓ Which one is hot?",
+        "options": ["❄️", "🔥", "🐢"],
+        "correct": "🔥"
+    },
+]
+
+
+def handle_reasoning_callback(bot, update):
+    q = update.callback_query
+    data = q.data
+
+    # Start reasoning test
+    if data == "verify_reason_start":
+        return ask_reasoning_question(bot, update)
+
+    # Process answer
+    if data.startswith("verify_reason_answer_"):
+        _, _, chosen, correct = data.split("_")
+        return check_reasoning_answer(bot, update, chosen, correct)
+
+
+# -----------------------------------------------------------
+# SCREEN 1 — Ask the reasoning question
+# -----------------------------------------------------------
+def ask_reasoning_question(bot, update):
+    q = update.callback_query
+    user = get_user(q.from_user.id)
+
+    # select one random question
+    item = random.choice(QUESTIONS)
+
+    question = item["question"]
+    options = item["options"]
+    correct = item["correct"]
+
+    # Shuffle options
+    random.shuffle(options)
+
+    text = (
+        "🔐 *HUMAN VERIFICATION — REASONING TEST*\n\n"
+        f"{question}\n\n"
+        "Choose the correct answer:"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [
+            InlineKeyboardButton(
+                opt,
+                callback_data=f"verify_reason_answer_{opt}_{correct}"
+            ) for opt in options
+        ]
+    ])
+
+    q.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+
+# -----------------------------------------------------------
+# SCREEN 2 — Check answer
+# -----------------------------------------------------------
+def check_reasoning_answer(bot, update, chosen, correct):
+    q = update.callback_query
+    user_id = q.from_user.id
+
+    if chosen == correct:
+        # Mark verified
+        db = load_db()
+        uid = str(user_id)
+        db[uid]["verified"] = True
+        save_db(db)
+
+        text = (
+            "✅ *Correct!*\n\n"
+            "Verification complete.\n"
+            "You may now begin onboarding."
+        )
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🚀 Begin Onboarding", callback_data="onboard_start")],
+        ])
+
+        q.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+    else:
+        text = (
+            "❌ *Incorrect answer!*\n\n"
+            "Let’s try a different question."
+        )
+
+        keyboard = InlineKeyboardMarkup([
+            [InlineKeyboardButton("🔄 Try Again", callback_data="verify_reason_start")],
+        ])
+
+        q.edit_message_text(text, parse_mode="Markdown", reply_markup=keyboard)
+
+🔧 ADD TO ROUTER
+
+In router.py:
+
+from modules.verify_reasoning import handle_reasoning_callback
+
+
+Add this route:
+
+if data.startswith("verify_reason") or data == "verify_reason_start":
+    return handle_reasoning_callback(bot, update)
+
+🚀 ADD ENTRY POINT IN /start BEFORE ANYTHING ELSE
+
+In your /start command:
+
+if not user.get("verified", False):
+    return bot.send_message(
+        chat_id=chat_id,
+        text="🔐 *Verification Required*\nBefore you begin, confirm you're human.",
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup([
+            [InlineKeyboardButton("🧠 Begin Verification", callback_data="verify_reason_start")]
+        ])
+    )

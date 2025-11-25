@@ -1,0 +1,258 @@
+💣 NEW GAME: EMOJI BOMB DEFUSAL
+
+A fast-reaction mini game where the bot drops bombs like:
+
+💣   💣   💣
+    💥
+
+
+One bomb is secretly the “correct” bomb.
+User must tap it before the explosion timer expires.
+
+Mechanics:
+
+Bot randomly chooses 1 bomb to be “safe”
+
+Bot shows 3–5 bombs
+
+Explosion timer: 0.8 – 2.0 seconds
+
+If user taps correct bomb before explosion → XP reward
+
+If user runs out of time → BOOM
+
+If user taps wrong bomb → BOOM
+
+XP reward:
+
+Fast defusal (<400ms) → +200 XP
+
+Medium (<900ms) → +120 XP
+
+Slow (<1200ms) → +60 XP
+
+Failure → 0 XP
+
+📁 Create This File:
+ascension-engine/modules/bomb_defusal.py
+
+📄 bomb_defusal.py (FULL — COPY & PASTE)
+"""
+modules/bomb_defusal.py
+Emoji Bomb Defusal minigame.
+
+User must tap the correct bomb before it "explodes" after a random timer.
+"""
+
+import time
+import random
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from database import get_user, load_db, save_db
+from ui.components import render_text
+
+# XP tiers based on reaction speed
+FAST_XP = 200
+MID_XP = 120
+SLOW_XP = 60
+FAIL_XP = 0
+
+
+# ---------------------------------------------------------
+# MAIN CALLBACK HANDLER
+# ---------------------------------------------------------
+def handle_bomb_defusal_callback(bot, update):
+    query = update.callback_query
+    data = query.data
+
+    # Open the game intro
+    if data == "game_bomb":
+        return _show_intro(bot, update)
+
+    # Start the round
+    if data == "bomb_start":
+        return _start_round(bot, update)
+
+    # Player chooses a bomb
+    if data.startswith("bomb_pick_"):
+        payload = data.replace("bomb_pick_", "")
+        bomb_index_str, start_ts_str, correct_index_str = payload.split("_")
+        return _process_choice(bot, update, int(bomb_index_str), float(start_ts_str), int(correct_index_str))
+
+
+# ---------------------------------------------------------
+# INTRO SCREEN
+# ---------------------------------------------------------
+def _show_intro(bot, update):
+    query = update.callback_query
+    user = get_user(query.from_user.id)
+
+    text = render_text(user,
+        "💣 *EMOJI BOMB DEFUSAL*\n\n"
+        "Three bombs drop… one is safe.\n"
+        "Tap the correct bomb before it explodes!\n\n"
+        "• <400ms → +200 XP\n"
+        "• <900ms → +120 XP\n"
+        "• <1200ms → +60 XP\n"
+        "• Wrong bomb / timeout → 0 XP\n"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("💣 Start", callback_data="bomb_start")],
+        [InlineKeyboardButton("↩️ Back", callback_data="games_main")]
+    ])
+
+    query.edit_message_text(
+        text=text,
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+
+
+# ---------------------------------------------------------
+# START THE ROUND
+# ---------------------------------------------------------
+def _start_round(bot, update):
+    query = update.callback_query
+    user = get_user(query.from_user.id)
+    chat_id = query.message.chat.id
+    message_id = query.message.message_id
+
+    # Random explosion delay between 0.8 and 2.0 seconds
+    delay = random.uniform(0.8, 2.0)
+
+    # Choose safe bomb index
+    correct_index = random.randint(0, 2)
+
+    # Mark start time
+    start_ts = time.time()
+
+    # Display bombs
+    text = render_text(user,
+        "💣💣💣\n\n"
+        "Tap *the correct bomb* before it explodes!"
+    )
+
+    keyboard = []
+    row = []
+
+    for i in range(3):
+        row.append(
+            InlineKeyboardButton(
+                "💣",
+                callback_data=f"bomb_pick_{i}_{start_ts}_{correct_index}"
+            )
+        )
+
+    keyboard.append(row)
+    keyboard.append([InlineKeyboardButton("↩️ Back", callback_data="games_main")])
+
+    bot.edit_message_text(
+        chat_id=chat_id,
+        message_id=message_id,
+        text=text,
+        parse_mode="Markdown",
+        reply_markup=InlineKeyboardMarkup(keyboard)
+    )
+
+    # Sleep until explosion
+    time.sleep(delay)
+
+    # If user hasn't tapped yet → explosion
+    # We detect this by checking if the message still contains bombs
+    # (Telegram edits are atomic and overwrite old)
+    try:
+        bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=message_id,
+            text=render_text(user, "💥 *BOOM!* You were too slow."),
+            parse_mode="Markdown",
+            reply_markup=InlineKeyboardMarkup([
+                [InlineKeyboardButton("🔁 Try Again", callback_data="bomb_start")],
+                [InlineKeyboardButton("🏠 Menu", callback_data="menu_main")]
+            ])
+        )
+        return
+    except:
+        # If edit failed, user already tapped.
+        return
+
+
+# ---------------------------------------------------------
+# HANDLE USER CHOICE
+# ---------------------------------------------------------
+def _process_choice(bot, update, chosen_index, start_ts, correct_index):
+    query = update.callback_query
+    user_id = query.from_user.id
+    user = get_user(user_id)
+
+    now = time.time()
+    reaction = now - start_ts
+
+    db = load_db()
+    uid = str(user_id)
+
+    # Check correctness
+    if chosen_index != correct_index:
+        xp = FAIL_XP
+        msg = "💥 *BOOM!* Wrong bomb!"
+    else:
+        # Correct bomb — now check reaction speed
+        if reaction < 0.4:
+            xp = FAST_XP
+            msg = f"⚡ *AMAZING!* {int(reaction*1000)}ms (+200 XP)"
+        elif reaction < 0.9:
+            xp = MID_XP
+            msg = f"🔥 Great! {int(reaction*1000)}ms (+120 XP)"
+        elif reaction < 1.2:
+            xp = SLOW_XP
+            msg = f"👍 Good! {int(reaction*1000)}ms (+60 XP)"
+        else:
+            xp = FAIL_XP
+            msg = f"🐌 Too slow! {int(reaction*1000)}ms (+0 XP)"
+
+    # Apply XP
+    db[uid]["xp"] += xp
+    save_db(db)
+    user = get_user(user_id)
+
+    text = render_text(user, msg)
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🔁 Play Again", callback_data="bomb_start")],
+        [InlineKeyboardButton("🎮 Games", callback_data="games_main")],
+        [InlineKeyboardButton("🏠 Menu", callback_data="menu_main")],
+    ])
+
+    query.edit_message_text(
+        text=text,
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+
+✅ ADD TO ROUTER
+
+Open:
+
+ascension-engine/router.py
+
+
+Add import:
+
+from modules.bomb_defusal import handle_bomb_defusal_callback
+
+
+Add routing:
+
+if data.startswith("bomb_") or data.startswith("game_bomb"):
+    return handle_bomb_defusal_callback(bot, update)
+
+✅ ADD TO GAMES MENU
+
+Open:
+
+ascension-engine/modules/games.py
+
+
+Add this line:
+
+[InlineKeyboardButton("💣 Bomb Defusal", callback_data="game_bomb")],

@@ -1,0 +1,84 @@
+Your /badges screen shows badge NAMES but not the emojis next to them.
+
+Example you WANT:
+
+🔥 Cracked
+⚙️ Machine
+🏅 Initiate
+
+
+But right now it only shows:
+
+Cracked
+Machine
+Initiate
+
+🎯 Solution
+
+We will add emoji mapping into your modules/badges.py UI.
+
+You already have badge definitions in the engine (modules/badges.py), but the UI file that shows the list needs emojis.
+
+We simply add an emoji dictionary and apply it.
+
+📁 Open this file:
+ascension-engine/modules/badges.py
+
+
+And MODIFY the badge list screen by inserting an emoji map like this:
+
+🧩 UPDATED BADGE LIST WITH EMOJIS
+
+Replace your _show_badge_list with this improved version:
+
+def _show_badge_list(bot, update):
+    query = update.callback_query
+    user_id = query.from_user.id
+    user = get_user(user_id)
+
+    badge_defs = get_badge_definitions()
+    unlocked = user.get("badges", [])
+
+    # EMOJI MAP
+    emoji_map = {
+        "Initiate": "🟦",
+        "Cracked": "🔥",
+        "Grinder": "⚡",
+        "Dominator": "🏆",
+        "Keeper": "📅",
+        "No Life": "💀",
+        "Trader": "📈",
+        "Machine": "⚙️",
+    }
+
+    text = "🏅 *YOUR BADGES*\n\n"
+
+    if not unlocked:
+        text += "_You haven't unlocked any badges yet._\n"
+    else:
+        for b in unlocked:
+            emoji = emoji_map.get(b, "🔸")
+            text += f"{emoji} *{b}*\n"
+
+    text = render_text(user, text)
+
+    # Build button grid
+    keyboard_rows = []
+    for badge_name in badge_defs.keys():
+        keyboard_rows.append([
+            InlineKeyboardButton(
+                f"{emoji_map.get(badge_name, '🔸')} {badge_name}",
+                callback_data=f"badge_detail_{badge_name}"
+            )
+        ])
+
+    keyboard_rows.append([InlineKeyboardButton("🏠 Menu", callback_data="menu_main")])
+    keyboard_rows.append([InlineKeyboardButton("🧿 Profile", callback_data="prof_main")])
+
+    keyboard = InlineKeyboardMarkup(keyboard_rows)
+
+    query.edit_message_text(
+        text=text,
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )

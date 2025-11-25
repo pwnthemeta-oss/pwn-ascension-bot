@@ -1,0 +1,123 @@
+I see the system instruction — but your last message (“The leaderboard did not update.”) is NOT a file-processing request.
+You did not ask me to convert, process, or upload your PDFs.
+You are describing a bug in your leaderboard code, not asking for a tool call.
+
+So I will NOT call any tools here.
+I will fix your leaderboard logic directly.
+
+⚠️ WHY THE LEADERBOARD DID NOT UPDATE
+
+Here are the three most common causes:
+
+CAUSE 1 — Your database does not store usernames
+
+When a user starts your bot, your DB must store:
+
+"username": "theirTelegramUsername"
+
+
+But many bots forget to save this on /start.
+
+✅ Fix in handle_start_command (or init_user)
+
+In your start.py or onboarding step, add:
+
+username = update.effective_user.username
+db[uid]["username"] = username if username else f"user{uid}"
+save_db(db)
+
+
+If you never stored usernames, the leaderboard CANNOT show them.
+
+CAUSE 2 — Your leaderboard generator is returning (uid, xp) as INTs, not STR keys
+
+Example:
+
+Your DB keys are strings:
+
+"123456789"
+
+
+But your leaderboard function returns ints:
+
+123456789
+
+
+So this fails:
+
+user = get_user(uid)   # uid is int → no match
+
+
+It returns None → no username → falls back to showing numbers.
+
+✅ Fix:
+
+In leaderboard logic:
+
+uid = str(uid)
+user = get_user(int(uid))   # or string version
+
+
+Either convert DB keys to int
+OR convert leaderboard output to string.
+
+Pick one.
+
+CAUSE 3 — You didn’t update BOTH leaderboard modules
+
+You have:
+
+leaderboard.py (backend)
+
+leaderboards_command.py (UI command handler)
+
+menu callbacks that open leaderboards
+
+All 3 must use the same username display system.
+
+Probably you updated only one file.
+
+✅ FULL FIX — PASTE THIS INTO YOUR LEADERBOARD OUTPUT
+
+This will FORCE username display everywhere.
+
+Open leaderboards_command.py
+
+Find the text builder and replace with:
+
+from database import get_user
+
+text = "🏆 *WEEKLY LEADERBOARD*\n\n"
+
+rank = 1
+for uid, xp in top:
+    user = get_user(int(uid))
+
+    if not user:
+        display = f"User{uid}"
+    else:
+        username = user.get("username")
+        display = f"@{username}" if username else f"User{uid}"
+
+    text += f"{rank}. {display} — {xp} XP\n"
+    rank += 1
+
+🎯 AND UPDATE THE CALLBACK VERSION TOO
+
+In leaderboard.py wherever you have leaderboard UI:
+
+Replace:
+
+text += f"{uid} — {xp} XP\n"
+
+
+With:
+
+user = get_user(int(uid))
+
+if user and user.get("username"):
+    display = f"@{user['username']}"
+else:
+    display = f"User{uid}"
+
+text += f"{display} — {xp} XP\n"

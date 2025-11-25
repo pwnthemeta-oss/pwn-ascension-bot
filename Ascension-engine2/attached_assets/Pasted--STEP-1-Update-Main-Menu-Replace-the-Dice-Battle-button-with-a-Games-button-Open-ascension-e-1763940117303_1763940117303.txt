@@ -1,0 +1,110 @@
+✅ STEP 1 — Update Main Menu
+
+Replace the Dice Battle button with a Games button.
+
+Open:
+
+ascension-engine/modules/menu.py
+
+
+Find this section:
+
+[InlineKeyboardButton("🔥 Grind", callback_data="prof_grind")],
+[InlineKeyboardButton("🏅 Badges", callback_data="badge_main")],
+[InlineKeyboardButton("🏆 Leaderboards", callback_data="lb_xp")],
+[InlineKeyboardButton("📅 Challenges", callback_data="ch_main")],
+# OLD
+[InlineKeyboardButton("🎲 Dice Battle", callback_data="dice_start")],
+
+
+Replace with:
+
+[InlineKeyboardButton("🎮 Games", callback_data="games_main")],
+
+
+Now the Main Menu shows a Games section, not individual games.
+
+✅ STEP 2 — Create the Games Menu Module
+
+Create this file:
+
+ascension-engine/modules/games.py
+
+
+Paste this:
+
+"""
+modules/games.py
+Games hub menu — lists all available mini-games.
+"""
+
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup
+from database import get_user
+from ui.components import render_text
+
+
+def handle_games_callback(bot, update):
+    query = update.callback_query
+    data = query.data
+    user_id = query.from_user.id
+    user = get_user(user_id)
+
+    # Games home screen
+    if data == "games_main":
+        return _show_games_menu(bot, update)
+
+    # Forward into specific games
+    if data.startswith("game_"):
+        # Example: game_dice → route to dice game
+        game = data.replace("game_", "")
+        if game == "dice":
+            from modules.dice_battle import _start_battle
+            return _start_battle(bot, update)
+
+    # Default fallback
+    return query.answer("Unknown game.")
+
+
+def _show_games_menu(bot, update):
+    query = update.callback_query
+    user = get_user(query.from_user.id)
+
+    text = render_text(user,
+        "🎮 *GAMES*\n\n"
+        "Choose a game to play and earn XP!\n"
+    )
+
+    keyboard = InlineKeyboardMarkup([
+        [InlineKeyboardButton("🎲 Dice Battle", callback_data="game_dice")],
+        # Future:
+        # [InlineKeyboardButton("⚡ Tap Speed Test", callback_data="game_tapspeed")],
+        # [InlineKeyboardButton("🧠 Memory Match", callback_data="game_memory")],
+        # [InlineKeyboardButton("⚔️ PVP Duel", callback_data="game_pvp")],
+        [InlineKeyboardButton("🏠 Menu", callback_data="menu_main")],
+    ])
+
+    query.edit_message_text(
+        text=text,
+        parse_mode="Markdown",
+        reply_markup=keyboard
+    )
+
+
+This is the main Games hub, and all games will appear here.
+
+✅ STEP 3 — Add Games Support to Router
+
+Open:
+
+ascension-engine/router.py
+
+
+Add import:
+
+from modules.games import handle_games_callback
+
+
+Add inside callback routes:
+
+if data.startswith("games") or data.startswith("game_"):
+    return handle_games_callback(bot, update)

@@ -1,0 +1,95 @@
+{
+    "8203772777": {
+        "xp": 9465,
+        "rank": "Master",
+        "streak": 2,
+        "grinds_today": 13,
+        "last_grind": 1764006442.5311656,
+        "last_grind_date": "2025-11-24",
+        "badges": [
+            "Initiate",
+            "First Grind",
+            "XP Hunter"
+        ],
+        "onboarding_step": 49,
+        "onboarding_complete": true,
+        "settings": {
+            "notifications": true,
+            "theme": "Dark",
+            "language": "English"
+        },
+        "activity": [],
+        "weekly": {
+            "xp": 3673,
+            "grinds": 20,
+            "badges": 0
+        },
+        "created_at": 1763938791,
+        "onb_step_2_answer": "B",
+        "onb_step_3_answer": "C",
+        "onb_step_4_answer": "B",
+        "xp_today": 650,
+        "challenges": {
+            "daily": {
+                "grinds_today": {
+                    "current": 0,
+                    "completed": false
+                },
+                "xp_today": {
+                    "current": 0,
+                    "completed": false
+                },
+                "streak_day": {
+                    "current": 0,
+                    "completed": false
+                }
+            },
+            "weekly": {
+                "xp_week": {
+                    "current": 0,
+                    "completed": false
+                },
+                "grinds_week": {
+                    "current": 0,
+                    "completed": false
+                },
+                "badge_collector": {
+                    "current": 0,
+                    "completed": false
+                }
+            }
+        },
+        "username": "DEVOTED_FOREIGN",
+        "verified": true,
+        "onb_step_44_answer": "B",
+        "last_spin": 1764005633,
+        "onb_step_48_answer": "B"
+    },
+    "7350840876": {
+        "xp": 50,
+        "rank": "Bronze",
+        "streak": 1,
+        "grinds_today": 1,
+        "last_grind": 1763956454.3803592,
+        "last_grind_date": "2025-11-24",
+        "badges": [
+            "First Grind"
+        ],
+        "onboarding_step": 1,
+        "onboarding_complete": false,
+        "settings": {
+            "notifications": true,
+            "theme": "Dark",
+            "language": "English"
+        },
+        "activity": [],
+        "weekly": {
+            "xp": 50,
+            "grinds": 1,
+            "badges": 0,
+            "top3": false
+        },
+        "username": "IAmDEVTY",
+        "xp_today": 50
+    }
+}
